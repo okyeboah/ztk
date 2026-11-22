@@ -32,8 +32,27 @@ pub fn runProxy(cmd_args: []const []const u8, allocator: std.mem.Allocator) !u8 
             log_path,
         ) catch {};
         if (processed.stderr.len > 0) compat.writeStderr(processed.stderr) catch {};
+        if (compressionMarker(result.stdout.len, processed.stdout.len, allocator)) |m| {
+            compat.writeStderr(m) catch {};
+        }
     }
     return result.exit_code;
+}
+
+const marker_min_removed_bytes: usize = 256;
+
+/// One-line `[ztk:` marker telling the reader the output was compressed on
+/// purpose. Null below the floor (>=25% reduction and >=256 bytes removed).
+fn compressionMarker(original: usize, filtered: usize, allocator: std.mem.Allocator) ?[]const u8 {
+    if (filtered >= original) return null;
+    const removed = original - filtered;
+    if (removed < marker_min_removed_bytes or removed * 4 < original) return null;
+    const pct = removed * 100 / original;
+    return std.fmt.allocPrint(
+        allocator,
+        "[ztk: output compressed {d} -> {d} bytes ({d}%). Exact output: prefix the command with `ztk run --raw`. This is by design, refine the query instead of retrying.]\n",
+        .{ original, filtered, pct },
+    ) catch null;
 }
 
 pub fn runRaw(cmd_args: []const []const u8, allocator: std.mem.Allocator) !u8 {
@@ -175,4 +194,22 @@ test "processOutput keeps stdout filter masking sensitive values on nonzero exit
     try std.testing.expect(std.mem.indexOf(u8, processed.stdout, "<masked>") != null);
     try std.testing.expect(std.mem.indexOf(u8, processed.stdout, "topsecret") == null);
     try std.testing.expectEqualStrings(exec_result.stderr, processed.stderr);
+}
+
+test "compressionMarker fires above the floor" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const m = compressionMarker(14000, 980, arena.allocator()).?;
+    try std.testing.expect(std.mem.startsWith(u8, m, "[ztk: output compressed 14000 -> 980 bytes (93%)"));
+    try std.testing.expect(std.mem.indexOf(u8, m, "ztk run --raw") != null);
+    try std.testing.expect(m[m.len - 1] == '\n');
+}
+
+test "compressionMarker stays silent below the floor" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    try std.testing.expect(compressionMarker(100, 10, arena.allocator()) == null);
+    try std.testing.expect(compressionMarker(1000, 900, arena.allocator()) == null);
+    try std.testing.expect(compressionMarker(500, 500, arena.allocator()) == null);
+    try std.testing.expect(compressionMarker(400, 500, arena.allocator()) == null);
 }

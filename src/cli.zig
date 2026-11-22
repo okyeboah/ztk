@@ -134,7 +134,7 @@ inline fn eq(a: []const u8, b: []const u8) bool {
 }
 
 test "version constant" {
-    try std.testing.expectEqualStrings("ztk 0.3.1", version_str);
+    try std.testing.expectEqualStrings("ztk 0.3.1-fork.1", version_str);
 }
 
 test "run with no args returns 1" {
