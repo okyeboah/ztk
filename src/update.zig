@@ -4,7 +4,7 @@ const compat = @import("compat.zig");
 const executor = @import("executor.zig");
 const version = @import("version.zig");
 
-const latest_release_url = "https://api.github.com/repos/codejunkie99/ztk/releases/latest";
+const latest_release_url = "https://api.github.com/repos/okyeboah/ztk/releases/latest";
 
 const Options = struct {
     check: bool = false,
@@ -175,7 +175,7 @@ fn buildUpdateScriptForAsset(
     const target = try shellQuote(allocator, target_path);
     defer allocator.free(target);
 
-    const asset_url = try std.fmt.allocPrint(allocator, "https://github.com/codejunkie99/ztk/releases/download/{s}/{s}", .{ tag, asset_name });
+    const asset_url = try std.fmt.allocPrint(allocator, "https://github.com/okyeboah/ztk/releases/download/{s}/{s}", .{ tag, asset_name });
     defer allocator.free(asset_url);
     const asset = try shellQuote(allocator, asset_url);
     defer allocator.free(asset);
@@ -230,7 +230,7 @@ fn shellQuote(allocator: std.mem.Allocator, value: []const u8) ![]const u8 {
 
 test "parseLatestTag extracts tag_name from GitHub release JSON" {
     const json =
-        \\{"url":"https://api.github.com/repos/codejunkie99/ztk/releases/1","tag_name":"v0.2.3","name":"ztk v0.2.3"}
+        \\{"url":"https://api.github.com/repos/okyeboah/ztk/releases/1","tag_name":"v0.2.3","name":"ztk v0.2.3"}
     ;
 
     const tag = try parseLatestTag(json);
@@ -254,7 +254,7 @@ test "buildUpdateScript downloads release binary and installs target binary" {
     const script = try buildUpdateScriptForAsset(std.testing.allocator, "/Users/me/.local/bin/ztk", "v0.2.3", "ztk-aarch64-macos.tar.gz");
     defer std.testing.allocator.free(script);
 
-    try std.testing.expect(std.mem.indexOf(u8, script, "https://github.com/codejunkie99/ztk/releases/download/v0.2.3/ztk-aarch64-macos.tar.gz") != null);
+    try std.testing.expect(std.mem.indexOf(u8, script, "https://github.com/okyeboah/ztk/releases/download/v0.2.3/ztk-aarch64-macos.tar.gz") != null);
     try std.testing.expect(std.mem.indexOf(u8, script, "zig build") == null);
     try std.testing.expect(std.mem.indexOf(u8, script, "target='/Users/me/.local/bin/ztk'") != null);
     try std.testing.expect(std.mem.indexOf(u8, script, "install -m 755 \"$tmp/ztk\" \"$new_target\"") != null);
